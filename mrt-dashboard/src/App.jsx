@@ -220,7 +220,7 @@ const App = () => {
                   <span>多</span>
                 </div>
               </div>
-              <div className="heatmap-container">
+              <div className="heatmap-container" style={{ position: 'relative' }}>
                 <div className="heatmap-grid-wrapper">
                   <div className="hour-labels">
                     {Array.from({length: 24}).map((_, i) => (
@@ -243,7 +243,21 @@ const App = () => {
                                   backgroundColor: stationColor,
                                   opacity: 0.1 + intensity * 0.9 
                                 }}
-                                onClick={() => setActiveCell({ date, hour: h, value })}
+                                onClick={(e) => {
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  // Toggle if clicking the same cell
+                                  if (activeCell?.date === date && activeCell?.hour === h) {
+                                    setActiveCell(null);
+                                  } else {
+                                    setActiveCell({ 
+                                      date, 
+                                      hour: h, 
+                                      value,
+                                      x: rect.left + rect.width / 2,
+                                      y: rect.top + window.scrollY
+                                    });
+                                  }
+                                }}
                                 title={`${date} ${h}h: ${value}人`}
                               ></div>
                             );
@@ -253,12 +267,22 @@ const App = () => {
                   ))}
                 </div>
                 {activeCell && (
-                  <div className="active-cell-info">
-                    <span className="info-date">{activeCell.date.split('-')[1]}/{activeCell.date.split('-')[2]}</span>
-                    <span className="info-time">{activeCell.hour}:00</span>
-                    <span className="info-value">{activeCell.value.toLocaleString()} 人次</span>
-                    <button className="close-info" onClick={() => setActiveCell(null)}>×</button>
-                  </div>
+                  <>
+                    <div className="active-cell-popover" style={{ 
+                      position: 'absolute',
+                      left: `${activeCell.x}px`,
+                      top: `${activeCell.y - 10}px`,
+                      transform: 'translate(-50%, -100%)'
+                    }}>
+                      <div className="popover-content">
+                        <div className="popover-time">{activeCell.date.split('-')[1]}/{activeCell.date.split('-')[2]} {activeCell.hour}:00</div>
+                        <div className="popover-value">{activeCell.value.toLocaleString()} 人次</div>
+                      </div>
+                      <div className="popover-arrow"></div>
+                    </div>
+                    {/* Invisible overlay to catch clicks outside */}
+                    <div className="popover-overlay" onClick={() => setActiveCell(null)}></div>
+                  </>
                 )}
               </div>
               <div className="heatmap-footer">
@@ -531,34 +555,50 @@ const App = () => {
           z-index: 5;
         }
 
-        .active-cell-info {
-          margin-top: 1rem;
+        .active-cell-popover {
+          z-index: 1000;
+          pointer-events: none;
+        }
+
+        .popover-content {
           background: #1e293b;
-          border: 1px solid #334155;
-          padding: 0.75rem 1rem;
+          border: 1px solid #3b82f6;
+          padding: 0.5rem 0.75rem;
           border-radius: 0.5rem;
-          display: flex;
-          align-items: center;
-          gap: 1rem;
+          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+          white-space: nowrap;
+          text-align: center;
+        }
+
+        .popover-time {
+          font-size: 0.75rem;
+          color: #94a3b8;
+          margin-bottom: 2px;
+        }
+
+        .popover-value {
           font-size: 0.9rem;
-          animation: slideUp 0.2s ease-out;
+          font-weight: 700;
+          color: #fff;
         }
 
-        @keyframes slideUp {
-          from { transform: translateY(10px); opacity: 0; }
-          to { transform: translateY(0); opacity: 1; }
+        .popover-arrow {
+          width: 0;
+          height: 0;
+          border-left: 6px solid transparent;
+          border-right: 6px solid transparent;
+          border-top: 6px solid #3b82f6;
+          margin: 0 auto;
         }
 
-        .info-date { color: #94a3b8; }
-        .info-time { font-weight: 600; color: #fff; }
-        .info-value { color: #3b82f6; font-weight: 700; }
-        .close-info { 
-          margin-left: auto;
+        .popover-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          z-index: 999;
           background: transparent;
-          border: none;
-          color: #64748b;
-          font-size: 1.2rem;
-          cursor: pointer;
         }
 
         @media (max-width: 768px) {
