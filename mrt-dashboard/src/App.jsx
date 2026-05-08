@@ -28,6 +28,7 @@ const App = () => {
   const [stationData, setStationData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [activeCell, setActiveCell] = useState(null);
 
   // Fetch stations index
   useEffect(() => {
@@ -64,6 +65,7 @@ const App = () => {
         setError('無法載入車站數據');
         setLoading(false);
       });
+    setActiveCell(null);
   }, [selectedStation]);
 
   const averages = stationData?.averages[dayType] || [];
@@ -110,7 +112,10 @@ const App = () => {
             <label><Map size={16} /> 車站</label>
             <select 
               value={selectedStation} 
-              onChange={(e) => setSelectedStation(e.target.value)}
+              onChange={(e) => {
+                setSelectedStation(e.target.value);
+                setActiveCell(null);
+              }}
               className="station-select"
             >
               {Object.entries(stationsIndex).map(([groupName, stations]) => (
@@ -132,7 +137,10 @@ const App = () => {
                 <button 
                   key={m.id} 
                   className={selectedMetric === m.id ? 'active' : ''}
-                  onClick={() => setSelectedMetric(m.id)}
+                  onClick={() => {
+                    setSelectedMetric(m.id);
+                    setActiveCell(null);
+                  }}
                 >
                   {m.name}
                 </button>
@@ -174,8 +182,8 @@ const App = () => {
                 </div>
               </div>
               <div className="chart-wrapper">
-                <ResponsiveContainer width="100%" height={400}>
-                  <AreaChart data={averages}>
+                <ResponsiveContainer width="100%" height={350}>
+                  <AreaChart data={averages} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorMetric" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor={stationColor} stopOpacity={0.3}/>
@@ -213,12 +221,12 @@ const App = () => {
                 </div>
               </div>
               <div className="heatmap-container">
-                <div className="hour-labels">
-                  {Array.from({length: 24}).map((_, i) => (
-                    <div key={i} className="hour-label">{i}h</div>
-                  ))}
-                </div>
                 <div className="heatmap-grid-wrapper">
+                  <div className="hour-labels">
+                    {Array.from({length: 24}).map((_, i) => (
+                      <div key={i} className="hour-label">{i}h</div>
+                    ))}
+                  </div>
                   {heatmapGrid.dates.map(date => (
                     <div key={date} className="heatmap-row">
                       <div className="date-label">{date.split('-')[2]}</div>
@@ -230,11 +238,12 @@ const App = () => {
                             return (
                               <div 
                                 key={h} 
-                                className="cell" 
+                                className={`cell ${activeCell?.date === date && activeCell?.hour === h ? 'active' : ''}`}
                                 style={{ 
                                   backgroundColor: stationColor,
                                   opacity: 0.1 + intensity * 0.9 
                                 }}
+                                onClick={() => setActiveCell({ date, hour: h, value })}
                                 title={`${date} ${h}h: ${value}人`}
                               ></div>
                             );
@@ -243,6 +252,14 @@ const App = () => {
                     </div>
                   ))}
                 </div>
+                {activeCell && (
+                  <div className="active-cell-info">
+                    <span className="info-date">{activeCell.date.split('-')[1]}/{activeCell.date.split('-')[2]}</span>
+                    <span className="info-time">{activeCell.hour}:00</span>
+                    <span className="info-value">{activeCell.value.toLocaleString()} 人次</span>
+                    <button className="close-info" onClick={() => setActiveCell(null)}>×</button>
+                  </div>
+                )}
               </div>
               <div className="heatmap-footer">
                 <Info size={14} /> 垂直軸代表日期 (1-31日)，水平軸代表小時 (0-23時)
@@ -382,6 +399,9 @@ const App = () => {
           border-radius: 1rem;
           padding: 1.5rem;
           box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+          overflow: hidden; /* Prevent charts from spilling out */
+          width: 100%;
+          box-sizing: border-box;
         }
 
         .section-header {
@@ -446,10 +466,17 @@ const App = () => {
           font-size: 0.9rem;
         }
 
-        /* Heatmap Styles */
         .heatmap-container {
           overflow-x: auto;
           padding-bottom: 1rem;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        .heatmap-grid-wrapper {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          min-width: 600px; /* Ensure cells have readable width on mobile */
         }
 
         .hour-labels {
@@ -464,12 +491,6 @@ const App = () => {
           text-align: center;
           font-size: 0.7rem;
           color: #64748b;
-        }
-
-        .heatmap-grid-wrapper {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
         }
 
         .heatmap-row {
@@ -504,6 +525,48 @@ const App = () => {
           box-shadow: 0 0 10px rgba(255,255,255,0.2);
         }
 
+        .cell.active {
+          outline: 2px solid #fff;
+          outline-offset: 1px;
+          z-index: 5;
+        }
+
+        .active-cell-info {
+          margin-top: 1rem;
+          background: #1e293b;
+          border: 1px solid #334155;
+          padding: 0.75rem 1rem;
+          border-radius: 0.5rem;
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          font-size: 0.9rem;
+          animation: slideUp 0.2s ease-out;
+        }
+
+        @keyframes slideUp {
+          from { transform: translateY(10px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+
+        .info-date { color: #94a3b8; }
+        .info-time { font-weight: 600; color: #fff; }
+        .info-value { color: #3b82f6; font-weight: 700; }
+        .close-info { 
+          margin-left: auto;
+          background: transparent;
+          border: none;
+          color: #64748b;
+          font-size: 1.2rem;
+          cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+          .cell:hover {
+            transform: none; /* Disable hover on mobile */
+          }
+        }
+
         .heatmap-footer {
           margin-top: 1.5rem;
           font-size: 0.8rem;
@@ -530,14 +593,19 @@ const App = () => {
 
         @media (max-width: 768px) {
           .dashboard-container {
-            padding: 1rem;
+            padding: 1rem 0.5rem;
           }
           header {
             flex-direction: column;
             align-items: flex-start;
+            padding: 1rem;
+          }
+          .logo h1 {
+            font-size: 1.2rem;
           }
           .controls {
             width: 100%;
+            gap: 1rem;
           }
           .control-group {
             width: 100%;
@@ -546,6 +614,23 @@ const App = () => {
             width: 100%;
           }
           .segmented-control button {
+            flex: 1;
+            padding: 0.5rem 0.5rem;
+            font-size: 0.8rem;
+          }
+          .card {
+            padding: 1rem;
+            border-radius: 0.5rem;
+          }
+          .section-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+          }
+          .day-selector {
+            width: 100%;
+          }
+          .day-selector button {
             flex: 1;
           }
         }
