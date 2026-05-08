@@ -245,6 +245,9 @@ const App = () => {
                                 }}
                                 onClick={(e) => {
                                   const rect = e.currentTarget.getBoundingClientRect();
+                                  const container = e.currentTarget.closest('.heatmap-container');
+                                  const containerRect = container.getBoundingClientRect();
+                                  
                                   // Toggle if clicking the same cell
                                   if (activeCell?.date === date && activeCell?.hour === h) {
                                     setActiveCell(null);
@@ -253,8 +256,9 @@ const App = () => {
                                       date, 
                                       hour: h, 
                                       value,
-                                      x: rect.left + rect.width / 2,
-                                      y: rect.top + window.scrollY
+                                      // Position relative to container
+                                      x: rect.left - containerRect.left + rect.width / 2,
+                                      y: rect.top - containerRect.top
                                     });
                                   }
                                 }}
